@@ -6,7 +6,7 @@
 
 # Veeam Enterprise Manager Server - API
 #
-# Fetch information from VEM RESTful API and stroe it to InfluxDB usnig Telegraf
+# Fetch information from VEEAM RESTful API and store it to InfluxDB using Telegraf
 #
 
 # Server IP Address or DNS name
@@ -28,7 +28,7 @@ TMP_FILE="/tmp/tmp_resp.tmp"
 JSON_FILE="/tmp/res.json.tmp"
 
 # Base URL for API
-BASE_URL="$API_URL/api/"
+BASE_URL="$API_URL/api"
 
 # Latest version of login url
 LOGIN_URL="$BASE_URL/sessionMngr/?v=latest"
@@ -46,6 +46,7 @@ curl --silent -d "" -X POST "$LOGIN_URL" -H "Content-Type: application/x-www-for
 
 # EXTRACT SESSION ID
 SESSION_ID=$(cat $TMP_FILE | grep -oPm1 "(?<=<SessionId>)[^<]+")
+SESSION_COOKIE=$(echo -n $SESSION_ID | base64)
 
 
 ###########################
@@ -56,7 +57,7 @@ SESSION_ID=$(cat $TMP_FILE | grep -oPm1 "(?<=<SessionId>)[^<]+")
 
 SUMMARY_OVERVIEW_URL="$BASE_URL/reports/summary/job_statistics"
 
-curl --silent -d "" -X GET "$SUMMARY_OVERVIEW_URL" -H "Accept: application/json" -H "X-RestSvcSessionId: $(echo -n $SESSION_ID | base64)" -o $JSON_FILE
+curl --silent -d "" -X GET "$SUMMARY_OVERVIEW_URL" -H "Accept: application/json" -H "X-RestSvcSessionId: $SESSION_COOKIE" -o $JSON_FILE
 
 sum_ov_job_rj=$(jq -r ".RunningJobs" $JSON_FILE)
 sum_ov_job_sj=$(jq -r ".ScheduledJobs" $JSON_FILE)
@@ -84,7 +85,7 @@ echo "veeamEntMgr_Job_Stat,hostname=$SERVER_ADDRESS failedJobRuns=$sum_ov_job_fj
 
 SUMMARY_OVERVIEW_URL="$BASE_URL/repositories"
 
-curl --silent -d "" -X GET "$SUMMARY_OVERVIEW_URL" -H "Accept: application/json" -H "X-RestSvcSessionId: $(echo -n $SESSION_ID | base64)" -o $JSON_FILE
+curl --silent -d "" -X GET "$SUMMARY_OVERVIEW_URL" -H "Accept: application/json" -H "X-RestSvcSessionId: $SESSION_COOKIE" -o $JSON_FILE
 
 repo_names=$(jq -r ".Refs" $JSON_FILE | jq -r ".[] .Href")
 
@@ -95,7 +96,7 @@ all_free=0
 while read -r uid; do
         #echo "$uid"
         REPO_URL="$uid?format=Entity"
-        curl --silent -d "" -X GET "$REPO_URL" -H "Accept: application/json" -H "X-RestSvcSessionId: $(echo -n $SESSION_ID | base64)" -o $JSON_FILE
+        curl --silent -d "" -X GET "$REPO_URL" -H "Accept: application/json" -H "X-RestSvcSessionId: $SESSION_COOKIE" -o $JSON_FILE
         repo_capacity=$(jq -r ".Capacity" $JSON_FILE)
         repo_freespace=$(jq -r ".FreeSpace" $JSON_FILE)
         repo_used=`expr $repo_capacity - $repo_freespace`
@@ -120,14 +121,14 @@ echo "veeam_repo,hostname=$SERVER_ADDRESS all_capacity=$all_capacity,allfree=$al
 
 SUMMARY_OVERVIEW_URL="$BASE_URL/backupTaskSessions"
 
-curl --silent -d "" -X GET "$SUMMARY_OVERVIEW_URL" -H "Accept: application/json" -H "X-RestSvcSessionId: $(echo -n $SESSION_ID | base64)" -o $JSON_FILE
+curl --silent -d "" -X GET "$SUMMARY_OVERVIEW_URL" -H "Accept: application/json" -H "X-RestSvcSessionId: $SESSION_COOKIE" -o $JSON_FILE
 
 bkup_hrefs=$(jq -r ".Refs" $JSON_FILE | jq -r ".[] .Href")
 
 while read -r uid; do
 
         REPO_URL="$uid?format=Entity"
-        curl --silent -d "" -X GET "$REPO_URL" -H "Accept: application/json" -H "X-RestSvcSessionId: $(echo -n $SESSION_ID | base64)" -o $JSON_FILE
+        curl --silent -d "" -X GET "$REPO_URL" -H "Accept: application/json" -H "X-RestSvcSessionId: $SESSION_COOKIE" -o $JSON_FILE
         bkup_vm_display_name=$(jq -r ".VmDisplayName" $JSON_FILE | sed -e 's/ /_/g')
         bkup_total_size=$(jq -r ".TotalSize" $JSON_FILE)
         bkup_state=$(jq -r ".State" $JSON_FILE | sed -e 's/ /_/g')
