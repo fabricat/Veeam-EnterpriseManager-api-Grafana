@@ -6,7 +6,7 @@
 
 # Veeam Enterprise Manager Server - API
 #
-# Fetch information from VEEAM RESTful API and store it to InfluxDB using Telegraf
+# Fetch information from VEM RESTful API and store it to InfluxDB using Telegraf
 #
 
 # Server IP Address or DNS name
